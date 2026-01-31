@@ -1,0 +1,2257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder Mission Control | McRae's Launch Control</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --space-black: #0a0a0f;
+            --deep-space: #12121a;
+            --nebula-purple: #1a1a2e;
+            --cosmic-blue: #16213e;
+            --nasa-blue: #0b3d91;
+            --nasa-red: #fc3d21;
+            --electric-cyan: #00d4ff;
+            --plasma-orange: #ff6b35;
+            --stellar-gold: #ffd700;
+            --success-green: #00ff88;
+            --caution-yellow: #ffcc00;
+            --warning-red: #ff4757;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+            --panel-bg: rgba(18, 18, 26, 0.95);
+            --panel-border: rgba(0, 212, 255, 0.2);
+            --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.3);
+            --glow-orange: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--space-black);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Starfield Background */
+        .starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background: 
+                radial-gradient(ellipse at 20% 80%, rgba(11, 61, 145, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(26, 26, 46, 0.8) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(22, 33, 62, 0.5) 0%, transparent 70%);
+        }
+
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #eee, transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+                radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.9), transparent),
+                radial-gradient(1px 1px at 230px 80px, #fff, transparent),
+                radial-gradient(2px 2px at 300px 150px, rgba(255,255,255,0.7), transparent),
+                radial-gradient(1px 1px at 370px 50px, #fff, transparent),
+                radial-gradient(1px 1px at 450px 180px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(2px 2px at 520px 90px, #fff, transparent),
+                radial-gradient(1px 1px at 600px 200px, rgba(255,255,255,0.6), transparent);
+            background-size: 650px 250px;
+            animation: twinkle 8s ease-in-out infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        /* App Container */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        /* Header */
+        .mission-header {
+            text-align: center;
+            padding: 2rem 1rem;
+            border-bottom: 1px solid var(--panel-border);
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .mission-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--electric-cyan), transparent);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--nasa-blue), var(--electric-cyan));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: var(--glow-cyan);
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(0, 212, 255, 0.6); }
+        }
+
+        .title-main {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            background: linear-gradient(135deg, var(--electric-cyan), var(--stellar-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-transform: uppercase;
+        }
+
+        .title-sub {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+            color: var(--text-secondary);
+            letter-spacing: 0.2em;
+            margin-top: 0.25rem;
+        }
+
+        .mission-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--success-green);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success-green);
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            padding: 0 1rem;
+        }
+
+        .nav-tab {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .nav-tab:hover {
+            border-color: var(--electric-cyan);
+            color: var(--electric-cyan);
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(11, 61, 145, 0.3));
+            border-color: var(--electric-cyan);
+            color: var(--electric-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* Main Layout */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Panel Styling */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--electric-cyan), transparent);
+            opacity: 0.5;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--nasa-blue), var(--electric-cyan));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--electric-cyan);
+        }
+
+        /* Slider Group */
+        .slider-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .slider-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .slider-container {
+            margin-bottom: 1.25rem;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .slider-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .slider-value {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--electric-cyan);
+            min-width: 2rem;
+            text-align: right;
+        }
+
+        .slider-description {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .slider-track {
+            position: relative;
+            height: 8px;
+            background: linear-gradient(90deg, 
+                var(--warning-red) 0%, 
+                var(--caution-yellow) 30%, 
+                var(--success-green) 70%, 
+                var(--electric-cyan) 100%);
+            border-radius: 4px;
+            overflow: visible;
+        }
+
+        .slider-input {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            z-index: 2;
+        }
+
+        .slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--space-black);
+            border: 3px solid var(--electric-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        .slider-input::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+        }
+
+        .slider-input::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: var(--space-black);
+            border: 3px solid var(--electric-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* Results Tier List */
+        .tier-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .tier {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .tier-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tier-badge {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.25rem;
+            font-weight: 800;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .tier-s .tier-badge { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; }
+        .tier-a .tier-badge { background: linear-gradient(135deg, #00ff88, #00cc6a); color: #000; }
+        .tier-b .tier-badge { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #000; }
+        .tier-c .tier-badge { background: linear-gradient(135deg, #a0a0b0, #707080); color: #000; }
+
+        .tier-label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .tier-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding-left: 52px;
+        }
+
+        .tier-item {
+            background: var(--deep-space);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 200px;
+            max-width: 100%;
+        }
+
+        .tier-item:hover {
+            border-color: var(--electric-cyan);
+            transform: translateY(-2px);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .tier-item.expanded {
+            flex-basis: 100%;
+            max-width: 100%;
+        }
+
+        .tier-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+
+        .tier-item-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .tier-item-score {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--electric-cyan);
+        }
+
+        .tier-item-type {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .tier-item-details {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+
+        .tier-item.expanded .tier-item-details {
+            display: block;
+        }
+
+        .tier-item-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+        }
+
+        .tier-item-bullets {
+            list-style: none;
+            padding: 0;
+        }
+
+        .tier-item-bullets li {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 0.25rem 0;
+            padding-left: 1.25rem;
+            position: relative;
+        }
+
+        .tier-item-bullets li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: var(--electric-cyan);
+        }
+
+        .caution-flag {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(255, 204, 0, 0.1);
+            border: 1px solid rgba(255, 204, 0, 0.3);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: var(--caution-yellow);
+        }
+
+        .caution-flag-icon {
+            flex-shrink: 0;
+        }
+
+        /* Salary Badge */
+        .salary-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 4px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--success-green);
+            margin-top: 0.5rem;
+        }
+
+        .clearance-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            border-radius: 4px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--plasma-orange);
+            margin-left: 0.5rem;
+        }
+
+        /* Profile Management */
+        .profile-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+        }
+
+        .profile-btn {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .profile-btn:hover {
+            border-color: var(--electric-cyan);
+            color: var(--electric-cyan);
+        }
+
+        .profile-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: var(--electric-cyan);
+            color: var(--electric-cyan);
+        }
+
+        .profile-btn.save {
+            background: linear-gradient(135deg, var(--nasa-blue), var(--electric-cyan));
+            border: none;
+            color: white;
+        }
+
+        .profile-btn.share {
+            background: linear-gradient(135deg, var(--plasma-orange), var(--stellar-gold));
+            border: none;
+            color: white;
+        }
+
+        /* Radar Chart Container */
+        .radar-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* Next Steps */
+        .next-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: var(--deep-space);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .step-item:hover {
+            border-color: var(--electric-cyan);
+        }
+
+        .step-number {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            font-weight: 700;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--nasa-blue), var(--electric-cyan));
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .step-description {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            color: var(--electric-cyan);
+            margin-bottom: 1rem;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--deep-space);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--electric-cyan);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        /* Share URL Display */
+        .share-url {
+            padding: 0.75rem;
+            background: var(--deep-space);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--electric-cyan);
+            word-break: break-all;
+            margin-bottom: 1rem;
+        }
+
+        /* Desktop Layout */
+        @media (min-width: 1024px) {
+            .app-container {
+                padding: 2rem;
+            }
+
+            .main-content {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+            }
+
+            .sliders-section {
+                grid-column: 1;
+            }
+
+            .results-section {
+                grid-column: 2;
+                position: sticky;
+                top: 2rem;
+                align-self: start;
+                max-height: calc(100vh - 4rem);
+                overflow-y: auto;
+            }
+
+            .full-width {
+                grid-column: 1 / -1;
+            }
+
+            .tier-items {
+                flex-wrap: nowrap;
+            }
+
+            .tier-item {
+                min-width: 180px;
+            }
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 640px) {
+            .nav-tabs {
+                gap: 0.35rem;
+            }
+
+            .nav-tab {
+                font-size: 0.65rem;
+                padding: 0.6rem 0.8rem;
+            }
+
+            .panel {
+                padding: 1rem;
+            }
+
+            .tier-items {
+                padding-left: 0;
+            }
+
+            .tier-header {
+                margin-bottom: 0.5rem;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--deep-space);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--panel-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--electric-cyan);
+        }
+    </style>
+</head>
+<body>
+    <div class="starfield">
+        <div class="stars"></div>
+    </div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // ============ DATA DEFINITIONS ============
+
+        const SLIDER_GROUPS = [
+            {
+                id: 'learning',
+                name: 'Learning & Cognitive Style',
+                icon: '🧠',
+                sliders: [
+                    {
+                        id: 'conceptual_vs_procedural',
+                        label: 'Abstract/Conceptual vs Procedural Thinking',
+                        description: 'Do you prefer big-picture ideas and theories, or step-by-step processes with clear procedures?',
+                        lowLabel: 'Procedural',
+                        highLabel: 'Conceptual',
+                        default: 9
+                    },
+                    {
+                        id: 'ambiguity_tolerance',
+                        label: 'Comfort with Ambiguity',
+                        description: 'Are you comfortable with open-ended problems, or do you prefer clear right/wrong answers?',
+                        lowLabel: 'Need Clear Answers',
+                        highLabel: 'Embrace Ambiguity',
+                        default: 8
+                    },
+                    {
+                        id: 'verbal_vs_math',
+                        label: 'Reading/Writing vs Math/Calculation Strength',
+                        description: 'Where do your natural academic strengths lie?',
+                        lowLabel: 'Math/Calculation',
+                        highLabel: 'Reading/Writing',
+                        default: 9
+                    },
+                    {
+                        id: 'big_picture_vs_detail',
+                        label: 'Big Picture vs Detail Orientation',
+                        description: 'Do you naturally see the forest or focus on individual trees?',
+                        lowLabel: 'Detail-Focused',
+                        highLabel: 'Big Picture',
+                        default: 9
+                    }
+                ]
+            },
+            {
+                id: 'work_environment',
+                name: 'Work Environment & Motivation',
+                icon: '⚙️',
+                sliders: [
+                    {
+                        id: 'structure_need',
+                        label: 'Need for External Structure/Accountability',
+                        description: 'Do you thrive with external deadlines and check-ins, or work best self-directed?',
+                        lowLabel: 'Self-Directed',
+                        highLabel: 'Need Structure',
+                        default: 8
+                    },
+                    {
+                        id: 'project_length',
+                        label: 'Long Immersive Projects vs Short Varied Tasks',
+                        description: 'Do you prefer diving deep into one thing, or variety and quick wins?',
+                        lowLabel: 'Short Tasks',
+                        highLabel: 'Long Projects',
+                        default: 8
+                    },
+                    {
+                        id: 'feedback_need',
+                        label: 'Need for Visible Progress/Feedback Loops',
+                        description: 'How important is seeing tangible progress and getting regular feedback?',
+                        lowLabel: 'Can Wait',
+                        highLabel: 'Need Frequent',
+                        default: 8
+                    },
+                    {
+                        id: 'mentor_importance',
+                        label: 'Importance of Mentor Relationships',
+                        description: 'How much do you benefit from close guidance from mentors vs figuring things out alone?',
+                        lowLabel: 'Independent',
+                        highLabel: 'Mentor-Driven',
+                        default: 9
+                    }
+                ]
+            },
+            {
+                id: 'interests',
+                name: 'Interests & Passions',
+                icon: '🚀',
+                sliders: [
+                    {
+                        id: 'space_interest',
+                        label: 'Space/Aerospace Interest',
+                        description: 'How passionate are you about space exploration, satellites, and aerospace?',
+                        lowLabel: 'Low Interest',
+                        highLabel: 'Core Passion',
+                        default: 10
+                    },
+                    {
+                        id: 'defense_interest',
+                        label: 'Defense/National Security Space Interest',
+                        description: 'Interest in military/defense applications of space technology (clearance-eligible careers)?',
+                        lowLabel: 'Civilian Only',
+                        highLabel: 'Defense Focused',
+                        default: 6
+                    },
+                    {
+                        id: 'philosophy_interest',
+                        label: 'Philosophy/Ethics/Big Questions',
+                        description: 'Interest in deep philosophical questions, ethics, and existential topics?',
+                        lowLabel: 'Practical Focus',
+                        highLabel: 'Deep Thinker',
+                        default: 9
+                    },
+                    {
+                        id: 'tech_robotics_interest',
+                        label: 'Technology/Robotics Interest',
+                        description: 'Interest in emerging technology, AI, robotics, and innovation?',
+                        lowLabel: 'Low Interest',
+                        highLabel: 'High Interest',
+                        default: 8
+                    },
+                    {
+                        id: 'business_interest',
+                        label: 'Business/Entrepreneurship Interest',
+                        description: 'Interest in startups, business strategy, and entrepreneurship?',
+                        lowLabel: 'Low Interest',
+                        highLabel: 'High Interest',
+                        default: 7
+                    },
+                    {
+                        id: 'writing_interest',
+                        label: 'Writing/Communication Interest',
+                        description: 'Interest in writing, storytelling, and communicating ideas?',
+                        lowLabel: 'Low Interest',
+                        highLabel: 'High Interest',
+                        default: 9
+                    }
+                ]
+            },
+            {
+                id: 'executive_function',
+                name: 'Executive Function Considerations',
+                icon: '🎯',
+                sliders: [
+                    {
+                        id: 'repetitive_tolerance',
+                        label: 'Tolerance for Repetitive Tasks',
+                        description: 'How well do you handle repetitive, routine work without losing focus?',
+                        lowLabel: 'Struggle',
+                        highLabel: 'Handle Well',
+                        default: 2
+                    },
+                    {
+                        id: 'multistep_comfort',
+                        label: 'Comfort with Multi-Step Processes',
+                        description: 'How well do you handle long sequences of steps without checkpoints?',
+                        lowLabel: 'Need Checkpoints',
+                        highLabel: 'Handle Well',
+                        default: 2
+                    },
+                    {
+                        id: 'novelty_need',
+                        label: 'Need for Novelty to Maintain Engagement',
+                        description: 'How much do you need new and interesting challenges to stay engaged?',
+                        lowLabel: 'Content with Routine',
+                        highLabel: 'Crave Novelty',
+                        default: 9
+                    }
+                ]
+            },
+            {
+                id: 'social',
+                name: 'Social & Communication Style',
+                icon: '💬',
+                sliders: [
+                    {
+                        id: 'independent_vs_team',
+                        label: 'Independent Work vs Team Collaboration',
+                        description: 'Do you prefer working alone or as part of a team?',
+                        lowLabel: 'Independent',
+                        highLabel: 'Team-Based',
+                        default: 4
+                    },
+                    {
+                        id: 'public_speaking',
+                        label: 'Comfort with Public Speaking/Presentations',
+                        description: 'How comfortable are you presenting ideas to groups?',
+                        lowLabel: 'Prefer Written',
+                        highLabel: 'Love Speaking',
+                        default: 6
+                    },
+                    {
+                        id: 'persuasion_interest',
+                        label: 'Interest in Persuading/Influencing Others',
+                        description: 'Do you enjoy debate, advocacy, and changing minds?',
+                        lowLabel: 'Avoid Conflict',
+                        highLabel: 'Love Debate',
+                        default: 8
+                    }
+                ]
+            },
+            {
+                id: 'career_priorities',
+                name: 'Career & Life Priorities',
+                icon: '🎖️',
+                sliders: [
+                    {
+                        id: 'stability_vs_risk',
+                        label: 'Job Stability vs Entrepreneurial Risk',
+                        description: 'Do you prefer stable employment or are you drawn to startup/entrepreneurial risk?',
+                        lowLabel: 'Stability',
+                        highLabel: 'Risk Tolerant',
+                        default: 6
+                    },
+                    {
+                        id: 'salary_vs_passion',
+                        label: 'Salary Priority vs Passion Priority',
+                        description: 'How important is maximizing income vs doing work you love?',
+                        lowLabel: 'Follow Passion',
+                        highLabel: 'Maximize Salary',
+                        default: 4
+                    },
+                    {
+                        id: 'impact_priority',
+                        label: 'Societal Impact vs Personal Achievement',
+                        description: 'Do you want to change the world or build personal success?',
+                        lowLabel: 'Personal Success',
+                        highLabel: 'Change the World',
+                        default: 8
+                    },
+                    {
+                        id: 'location_flexibility',
+                        label: 'Geographic Flexibility',
+                        description: 'Willing to relocate to space industry hubs (Houston, DC, LA) or prefer staying regional?',
+                        lowLabel: 'Stay Regional',
+                        highLabel: 'Go Anywhere',
+                        default: 7
+                    }
+                ]
+            }
+        ];
+
+        const MAJORS = [
+            {
+                id: 'new_college',
+                name: 'New College Interdisciplinary Studies',
+                type: 'Major',
+                description: "UA's pioneering interdisciplinary program lets you design a custom degree combining aerospace topics, philosophy, writing, and more. Perfect for conceptual thinkers who don't fit traditional boxes.",
+                bullets: [
+                    'Design your own 33-39 hour "depth study" across any departments',
+                    'Close faculty mentorship throughout your journey',
+                    'Senior capstone project on topics like space policy or Venus colonization',
+                    'Alumni pursue law, policy, foreign service, and tech leadership'
+                ],
+                weights: {
+                    conceptual_vs_procedural: 1.5,
+                    ambiguity_tolerance: 1.3,
+                    verbal_vs_math: 1.2,
+                    big_picture_vs_detail: 1.4,
+                    space_interest: 0.8,
+                    philosophy_interest: 1.0,
+                    writing_interest: 1.0
+                },
+                cautionFactors: [
+                    { factor: 'structure_need', threshold: 7, message: 'Your high need for external structure may require extra support from UA-ACTS. New College is self-directed—work closely with your mentor to create checkpoints.' }
+                ],
+                minors: ['astronomy', 'philosophy', 'writing', 'entrepreneurship']
+            },
+            {
+                id: 'philosophy',
+                name: 'Philosophy (Mind-Brain Specialization)',
+                type: 'Major',
+                description: 'Dive deep into questions of consciousness, ethics, and the philosophy of science. Strong foundation for space policy, AI ethics, and strategic thinking careers.',
+                bullets: [
+                    'Core courses in logic, epistemology, and philosophy of science',
+                    'Mind-Brain specialization explores consciousness and cognition',
+                    'PHL 486 Philosophy of Science directly relevant to aerospace thinking',
+                    'Excellent preparation for law school or policy graduate programs'
+                ],
+                weights: {
+                    conceptual_vs_procedural: 1.4,
+                    ambiguity_tolerance: 1.3,
+                    verbal_vs_math: 1.3,
+                    philosophy_interest: 1.8,
+                    writing_interest: 1.2,
+                    big_picture_vs_detail: 1.2
+                },
+                cautionFactors: [],
+                minors: ['astronomy', 'writing', 'computer_science', 'business']
+            },
+            {
+                id: 'communication',
+                name: 'Communication Studies',
+                type: 'Major',
+                description: 'Master the art of persuasion, public speaking, and strategic communication. Direct path to space industry PR, government affairs, and advocacy roles.',
+                bullets: [
+                    'COM 380 Influence and COM 462 Theories of Persuasion',
+                    'Strong public speaking and presentation training',
+                    'Media relations and crisis communication skills',
+                    'Direct pipeline to aerospace company communications roles'
+                ],
+                weights: {
+                    verbal_vs_math: 1.4,
+                    public_speaking: 1.5,
+                    persuasion_interest: 1.6,
+                    writing_interest: 1.2,
+                    independent_vs_team: 0.8
+                },
+                cautionFactors: [
+                    { factor: 'independent_vs_team', threshold: 3, message: 'Communication careers often involve significant team collaboration and stakeholder management.' }
+                ],
+                minors: ['astronomy', 'business', 'political_science']
+            },
+            {
+                id: 'english',
+                name: 'English (Professional Writing Focus)',
+                type: 'Major',
+                description: 'Develop elite writing skills applicable across industries. EN 381 Science Writing and EN 319 Technical Writing create direct aerospace career pathways.',
+                bullets: [
+                    'EN 381 Science Writing teaches translating complex concepts',
+                    'EN 319 Technical Writing develops documentation skills',
+                    'Strong research and argumentation training',
+                    'Aerospace technical writers earn $98K-$182K'
+                ],
+                weights: {
+                    verbal_vs_math: 1.6,
+                    writing_interest: 1.8,
+                    conceptual_vs_procedural: 1.0,
+                    ambiguity_tolerance: 1.0
+                },
+                cautionFactors: [],
+                minors: ['astronomy', 'philosophy', 'computer_science']
+            },
+            {
+                id: 'political_science',
+                name: 'Political Science',
+                type: 'Major',
+                description: 'Understand how policy shapes the space industry. Direct preparation for space policy, government affairs, and regulatory careers.',
+                bullets: [
+                    'Focus on policy analysis and government processes',
+                    'International relations track relevant to space treaties',
+                    'Strong preparation for GW Space Policy Institute',
+                    'Head of Government Affairs at True Anomaly: $160K-$225K'
+                ],
+                weights: {
+                    verbal_vs_math: 1.3,
+                    philosophy_interest: 1.0,
+                    persuasion_interest: 1.3,
+                    defense_interest: 1.2,
+                    impact_priority: 1.2,
+                    writing_interest: 1.0
+                },
+                cautionFactors: [],
+                minors: ['astronomy', 'philosophy', 'economics']
+            },
+            {
+                id: 'psychology',
+                name: 'Psychology',
+                type: 'Major',
+                description: 'Study human behavior, cognition, and decision-making. Applicable to UX research, human factors engineering, and organizational leadership.',
+                bullets: [
+                    'Understanding of human cognition and behavior',
+                    'Research methods and data analysis training',
+                    'Human factors relevant to spacecraft design decisions',
+                    'Path to UX research or organizational psychology'
+                ],
+                weights: {
+                    conceptual_vs_procedural: 1.0,
+                    philosophy_interest: 0.9,
+                    big_picture_vs_detail: 0.8,
+                    independent_vs_team: 0.7
+                },
+                cautionFactors: [],
+                minors: ['business', 'computer_science', 'philosophy']
+            },
+            {
+                id: 'economics',
+                name: 'Economics',
+                type: 'Major',
+                description: 'Analyze markets, incentives, and resource allocation. Strong foundation for space industry business development and venture capital.',
+                bullets: [
+                    'Market analysis and economic modeling',
+                    'Understanding of incentive structures',
+                    'Quantitative skills without heavy calculus requirements',
+                    'Path to aerospace consulting and space VC'
+                ],
+                weights: {
+                    business_interest: 1.4,
+                    big_picture_vs_detail: 1.1,
+                    verbal_vs_math: 0.6,
+                    stability_vs_risk: 0.9
+                },
+                cautionFactors: [
+                    { factor: 'verbal_vs_math', threshold: 8, message: 'Economics requires intermediate math courses. Consider pairing with strong tutoring support.' }
+                ],
+                minors: ['business', 'political_science', 'data_science']
+            },
+            {
+                id: 'marketing',
+                name: 'Marketing',
+                type: 'Major',
+                description: 'Master storytelling, brand strategy, and market positioning. Space companies need marketers who understand the vision.',
+                bullets: [
+                    'Brand strategy and positioning',
+                    'Consumer behavior and market research',
+                    'Digital marketing and content creation',
+                    'True Anomaly Content Producer: $80K-$100K'
+                ],
+                weights: {
+                    writing_interest: 1.2,
+                    persuasion_interest: 1.3,
+                    business_interest: 1.3,
+                    public_speaking: 1.0
+                },
+                cautionFactors: [],
+                minors: ['communication', 'computer_science', 'entrepreneurship']
+            },
+            {
+                id: 'management',
+                name: 'Management',
+                type: 'Major',
+                description: 'Learn organizational leadership and project management. Program managers at space companies earn $140K-$270K.',
+                bullets: [
+                    'Organizational behavior and leadership',
+                    'Project and operations management',
+                    'Strategic planning and decision-making',
+                    'Direct path to aerospace program management'
+                ],
+                weights: {
+                    business_interest: 1.3,
+                    independent_vs_team: 1.2,
+                    big_picture_vs_detail: 1.0,
+                    structure_need: 0.9
+                },
+                cautionFactors: [],
+                minors: ['entrepreneurship', 'communication', 'computer_science']
+            },
+            {
+                id: 'aerospace_engineering',
+                name: 'Aerospace Engineering',
+                type: 'Major (Reference)',
+                description: 'Traditional engineering path requiring heavy math and procedural coursework. Included for comparison—likely not optimal given your profile.',
+                bullets: [
+                    'Calculus sequence through differential equations',
+                    'Physics, thermodynamics, fluid mechanics',
+                    'Highly procedural with single correct answers',
+                    'Best for those strong in math execution'
+                ],
+                weights: {
+                    conceptual_vs_procedural: -1.5,
+                    verbal_vs_math: -1.8,
+                    repetitive_tolerance: 1.5,
+                    multistep_comfort: 1.5,
+                    space_interest: 1.0
+                },
+                cautionFactors: [
+                    { factor: 'verbal_vs_math', threshold: 6, message: 'Your reading/writing strength over math suggests engineering coursework will be a significant challenge.' },
+                    { factor: 'repetitive_tolerance', threshold: 4, inverse: true, message: 'Low tolerance for repetitive tasks conflicts with engineering problem sets.' }
+                ],
+                minors: []
+            }
+        ];
+
+        const MINORS = [
+            { id: 'astronomy', name: 'Astronomy', description: '14 credit hours covering planetary science, astrobiology, and orbital mechanics.' },
+            { id: 'philosophy', name: 'Philosophy', description: 'Logic, ethics, and systematic reasoning.' },
+            { id: 'writing', name: 'Digital, Public & Professional Writing', description: 'Science writing, technical documentation, and digital media.' },
+            { id: 'entrepreneurship', name: 'Entrepreneurship', description: 'Startup development, venture creation, and innovation.' },
+            { id: 'business', name: 'Business Administration', description: 'Foundational business knowledge across functions.' },
+            { id: 'computer_science', name: 'Computer Science', description: 'Programming and computational thinking basics.' },
+            { id: 'mathematics', name: 'Mathematics', description: 'Advanced mathematical foundations.' },
+            { id: 'data_science', name: 'Data Science', description: 'Analytics, statistics, and data visualization.' },
+            { id: 'political_science', name: 'Political Science', description: 'Policy analysis and government processes.' },
+            { id: 'economics', name: 'Economics', description: 'Market analysis and economic reasoning.' },
+            { id: 'communication', name: 'Communication Studies', description: 'Persuasion, public speaking, and media.' },
+            { id: 'physics', name: 'Physics', description: 'Fundamental physical principles.' },
+            { id: 'robotics', name: 'Robotics (via course selection)', description: 'Robotic systems through CS and engineering electives.' }
+        ];
+
+        const CAREERS = [
+            {
+                id: 'space_policy',
+                name: 'Space Policy Analyst',
+                type: 'Career',
+                salary: '$80K - $150K',
+                clearanceBonus: true,
+                description: 'Shape the rules governing space exploration and defense. Work at NASA, think tanks, or congressional offices analyzing space legislation and international treaties.',
+                bullets: [
+                    'Analyze space legislation and regulatory frameworks',
+                    'Brief policymakers on technical space issues',
+                    'Work at NASA HQ, think tanks, or Capitol Hill',
+                    'GW Space Policy Institute is the premier graduate pathway'
+                ],
+                weights: {
+                    philosophy_interest: 1.3,
+                    space_interest: 1.5,
+                    writing_interest: 1.3,
+                    persuasion_interest: 1.2,
+                    verbal_vs_math: 1.2,
+                    impact_priority: 1.3
+                }
+            },
+            {
+                id: 'gov_affairs',
+                name: 'Head of Government Affairs',
+                type: 'Career',
+                salary: '$160K - $225K',
+                clearanceBonus: true,
+                description: 'Lead a space company\'s relationship with government. True Anomaly, SpaceX, and others need advocates who understand both policy and technology.',
+                bullets: [
+                    'Build relationships with legislators and DoD officials',
+                    'Navigate defense acquisition and contracting',
+                    'Advocate for company interests in policy debates',
+                    'Requires understanding of space tech + political savvy'
+                ],
+                weights: {
+                    persuasion_interest: 1.6,
+                    defense_interest: 1.5,
+                    space_interest: 1.3,
+                    public_speaking: 1.3,
+                    location_flexibility: 1.2
+                }
+            },
+            {
+                id: 'aerospace_writer',
+                name: 'Aerospace Technical Writer',
+                type: 'Career',
+                salary: '$98K - $182K',
+                clearanceBonus: true,
+                description: 'Translate complex aerospace systems into clear documentation. Every spacecraft needs manuals, proposals, and technical reports.',
+                bullets: [
+                    'Write proposals, manuals, and technical documentation',
+                    'Translate engineering concepts for various audiences',
+                    'Work embedded with engineering teams',
+                    'High demand across defense and commercial space'
+                ],
+                weights: {
+                    writing_interest: 1.8,
+                    space_interest: 1.3,
+                    verbal_vs_math: 1.4,
+                    tech_robotics_interest: 1.0,
+                    conceptual_vs_procedural: 1.0
+                }
+            },
+            {
+                id: 'science_communicator',
+                name: 'Science Communicator / Space Journalist',
+                type: 'Career',
+                salary: '$60K - $120K',
+                clearanceBonus: false,
+                description: 'Tell the story of space exploration to the public. Think Eric Berger (Ars Technica) or Tim Dodd (Everyday Astronaut).',
+                bullets: [
+                    'Write for outlets like SpaceNews, Ars Technica',
+                    'Create video content explaining space technology',
+                    'Build audience through passion and consistency',
+                    'Tim Dodd built million-subscriber channel without degree'
+                ],
+                weights: {
+                    writing_interest: 1.6,
+                    space_interest: 1.8,
+                    public_speaking: 1.2,
+                    conceptual_vs_procedural: 1.2,
+                    stability_vs_risk: -0.8
+                }
+            },
+            {
+                id: 'content_producer',
+                name: 'Content Producer (Space Company)',
+                type: 'Career',
+                salary: '$80K - $100K',
+                clearanceBonus: false,
+                description: 'Create compelling content that tells a space company\'s story. True Anomaly and others need visual storytellers.',
+                bullets: [
+                    'Produce videos, graphics, and written content',
+                    'Tell the company story to public and investors',
+                    'Work closely with engineering and leadership',
+                    'Creative role inside technical environment'
+                ],
+                weights: {
+                    writing_interest: 1.5,
+                    space_interest: 1.4,
+                    tech_robotics_interest: 1.0,
+                    novelty_need: 1.2
+                }
+            },
+            {
+                id: 'program_manager',
+                name: 'Program Manager (Aerospace)',
+                type: 'Career',
+                salary: '$140K - $270K',
+                clearanceBonus: true,
+                description: 'Coordinate complex aerospace programs without being an engineer. Systems thinking and communication matter more than calculation.',
+                bullets: [
+                    'Coordinate across engineering, finance, and operations',
+                    'Manage schedules, budgets, and stakeholder relationships',
+                    'Systems-level thinking over technical execution',
+                    'True Anomaly PMs: $140K-$270K'
+                ],
+                weights: {
+                    big_picture_vs_detail: 1.4,
+                    space_interest: 1.2,
+                    independent_vs_team: 1.2,
+                    structure_need: 1.1,
+                    defense_interest: 1.0
+                }
+            },
+            {
+                id: 'mission_architect',
+                name: 'Mission Architect / Concept Developer',
+                type: 'Career',
+                salary: '$100K - $180K',
+                clearanceBonus: true,
+                description: 'Design mission concepts before engineers build them. Your Venus colonization ideas are exactly this kind of thinking.',
+                bullets: [
+                    'Develop high-level mission concepts and trade studies',
+                    'Bridge visionary ideas and engineering feasibility',
+                    'Work in early-phase program development',
+                    'Conceptual creativity valued over calculation'
+                ],
+                weights: {
+                    conceptual_vs_procedural: 1.6,
+                    space_interest: 1.8,
+                    big_picture_vs_detail: 1.5,
+                    tech_robotics_interest: 1.2,
+                    ambiguity_tolerance: 1.3
+                }
+            },
+            {
+                id: 'aerospace_consultant',
+                name: 'Aerospace Consultant (BryceTech-style)',
+                type: 'Career',
+                salary: '$56K - $150K+',
+                clearanceBonus: true,
+                description: 'Advise aerospace companies and government on strategy. BryceTech explicitly hires writers, economists, and policy analysts.',
+                bullets: [
+                    'Market analysis and competitive intelligence',
+                    'Strategic advisory to space companies and DoD',
+                    'Research and white paper development',
+                    'BryceTech hires engineers, writers, economists, analysts'
+                ],
+                weights: {
+                    writing_interest: 1.3,
+                    space_interest: 1.4,
+                    business_interest: 1.3,
+                    conceptual_vs_procedural: 1.2,
+                    verbal_vs_math: 1.1
+                }
+            },
+            {
+                id: 'space_vc',
+                name: 'Space Venture Capital Analyst',
+                type: 'Career',
+                salary: '$80K - $200K+',
+                clearanceBonus: false,
+                description: 'Evaluate and fund the next generation of space companies. Space Capital, Seraphim, and others seek non-engineers who understand the market.',
+                bullets: [
+                    'Evaluate space startup investments',
+                    'Market analysis and due diligence',
+                    'MBA or finance background typical',
+                    'Passion for space + business acumen'
+                ],
+                weights: {
+                    business_interest: 1.6,
+                    space_interest: 1.5,
+                    stability_vs_risk: 1.3,
+                    conceptual_vs_procedural: 1.2,
+                    location_flexibility: 1.2
+                }
+            },
+            {
+                id: 'startup_founder',
+                name: 'Space Tech Startup Founder',
+                type: 'Career',
+                salary: 'Variable (equity-based)',
+                clearanceBonus: false,
+                description: 'Build your own company around space technology or services. Non-technical founders succeed with vision and team-building.',
+                bullets: [
+                    'Vision and storytelling to attract talent and capital',
+                    'Business model development',
+                    'Partner with technical co-founders',
+                    'Your Venus/asteroid ideas could seed a venture'
+                ],
+                weights: {
+                    business_interest: 1.5,
+                    space_interest: 1.6,
+                    stability_vs_risk: 1.8,
+                    conceptual_vs_procedural: 1.3,
+                    persuasion_interest: 1.3
+                }
+            },
+            {
+                id: 'nasa_public_affairs',
+                name: 'NASA Public Affairs Specialist',
+                type: 'Career',
+                salary: '$79K - $160K (GS-11 to GS-14)',
+                clearanceBonus: false,
+                description: 'Be the voice of NASA to the public. Communications, journalism, or English degrees—not engineering—are the pathway.',
+                bullets: [
+                    'Media relations and press releases',
+                    'Public engagement and education programs',
+                    'Social media and digital communications',
+                    'Communications/journalism degree required, not STEM'
+                ],
+                weights: {
+                    writing_interest: 1.5,
+                    space_interest: 1.6,
+                    public_speaking: 1.3,
+                    impact_priority: 1.2,
+                    stability_vs_risk: -1.0
+                }
+            },
+            {
+                id: 'space_nonprofit',
+                name: 'Space Advocacy / Nonprofit',
+                type: 'Career',
+                salary: '$50K - $120K',
+                clearanceBonus: false,
+                description: 'Advance space exploration through organizations like Planetary Society, National Space Society, or Space Foundation.',
+                bullets: [
+                    'Public advocacy and education',
+                    'Event planning and community building',
+                    'Grant writing and fundraising',
+                    'Mission-driven work for space believers'
+                ],
+                weights: {
+                    space_interest: 1.7,
+                    impact_priority: 1.5,
+                    writing_interest: 1.2,
+                    persuasion_interest: 1.2,
+                    salary_vs_passion: -1.2
+                }
+            },
+            {
+                id: 'grad_school_policy',
+                name: 'Graduate School: Space Policy',
+                type: 'Pathway',
+                salary: 'Investment → $100K+ careers',
+                clearanceBonus: false,
+                description: 'GW Space Policy Institute or similar programs open doors to senior policy roles. D.C. location provides internship access.',
+                bullets: [
+                    'George Washington University Space Policy Institute',
+                    'Master\'s in International Science & Technology Policy',
+                    'Internships at NASA, White House OSTP, Congress',
+                    '1-2 year program, strong career placement'
+                ],
+                weights: {
+                    philosophy_interest: 1.2,
+                    space_interest: 1.5,
+                    writing_interest: 1.2,
+                    impact_priority: 1.3,
+                    location_flexibility: 1.2
+                }
+            },
+            {
+                id: 'grad_school_law',
+                name: 'Graduate School: Space Law',
+                type: 'Pathway',
+                salary: 'Investment → $120K+ careers',
+                clearanceBonus: false,
+                description: 'Emerging field governing space commerce, property rights, and international treaties. Philosophy and debate skills translate directly.',
+                bullets: [
+                    'University of Nebraska, McGill, Leiden programs',
+                    'Space property rights, orbital debris law',
+                    'International treaty negotiation',
+                    'Growing demand as commercial space expands'
+                ],
+                weights: {
+                    philosophy_interest: 1.4,
+                    space_interest: 1.4,
+                    persuasion_interest: 1.5,
+                    verbal_vs_math: 1.3,
+                    ambiguity_tolerance: 1.2
+                }
+            }
+        ];
+
+        // ============ SCORING FUNCTIONS ============
+
+        function calculateScore(item, sliderValues) {
+            let score = 50; // Base score
+            const weights = item.weights || {};
+            
+            Object.entries(weights).forEach(([sliderId, weight]) => {
+                const value = sliderValues[sliderId] || 5;
+                const normalizedValue = (value - 5) / 5; // -1 to 1
+                score += normalizedValue * weight * 10;
+            });
+            
+            return Math.max(0, Math.min(100, Math.round(score)));
+        }
+
+        function getCautions(item, sliderValues) {
+            if (!item.cautionFactors) return [];
+            
+            return item.cautionFactors.filter(caution => {
+                const value = sliderValues[caution.factor] || 5;
+                if (caution.inverse) {
+                    return value < caution.threshold;
+                }
+                return value >= caution.threshold;
+            });
+        }
+
+        function getTier(score) {
+            if (score >= 75) return 'S';
+            if (score >= 60) return 'A';
+            if (score >= 45) return 'B';
+            return 'C';
+        }
+
+        // ============ COMPONENTS ============
+
+        function Slider({ slider, value, onChange }) {
+            return (
+                <div className="slider-container">
+                    <div className="slider-header">
+                        <span className="slider-label">{slider.label}</span>
+                        <span className="slider-value">{value}</span>
+                    </div>
+                    <div className="slider-description">{slider.description}</div>
+                    <div className="slider-track">
+                        <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={value}
+                            onChange={(e) => onChange(slider.id, parseInt(e.target.value))}
+                            className="slider-input"
+                        />
+                    </div>
+                    <div className="slider-labels">
+                        <span>{slider.lowLabel}</span>
+                        <span>{slider.highLabel}</span>
+                    </div>
+                </div>
+            );
+        }
+
+        function SliderGroup({ group, values, onChange }) {
+            return (
+                <div className="panel">
+                    <div className="panel-header">
+                        <div className="panel-icon">{group.icon}</div>
+                        <h3 className="panel-title">{group.name}</h3>
+                    </div>
+                    <div className="slider-group">
+                        {group.sliders.map(slider => (
+                            <Slider
+                                key={slider.id}
+                                slider={slider}
+                                value={values[slider.id] || slider.default}
+                                onChange={onChange}
+                            />
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function TierItem({ item, score, cautions, expanded, onToggle }) {
+            return (
+                <div 
+                    className={`tier-item ${expanded ? 'expanded' : ''}`}
+                    onClick={onToggle}
+                >
+                    <div className="tier-item-header">
+                        <span className="tier-item-name">{item.name}</span>
+                        <span className="tier-item-score">{score}%</span>
+                    </div>
+                    <div className="tier-item-type">
+                        {item.type}
+                        {item.salary && <span className="salary-badge">{item.salary}</span>}
+                        {item.clearanceBonus && <span className="clearance-badge">🔒 Clearance+</span>}
+                    </div>
+                    <div className="tier-item-details">
+                        <p className="tier-item-description">{item.description}</p>
+                        <ul className="tier-item-bullets">
+                            {item.bullets.map((bullet, i) => (
+                                <li key={i}>{bullet}</li>
+                            ))}
+                        </ul>
+                        {item.minors && item.minors.length > 0 && (
+                            <p className="tier-item-description" style={{marginTop: '0.75rem'}}>
+                                <strong>Suggested minors:</strong> {item.minors.map(m => 
+                                    MINORS.find(minor => minor.id === m)?.name
+                                ).filter(Boolean).join(', ')}
+                            </p>
+                        )}
+                        {cautions.map((caution, i) => (
+                            <div key={i} className="caution-flag">
+                                <span className="caution-flag-icon">⚠️</span>
+                                <span>{caution.message}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function TierList({ items, values, title }) {
+            const [expandedId, setExpandedId] = useState(null);
+            
+            const scoredItems = items.map(item => ({
+                ...item,
+                score: calculateScore(item, values),
+                cautions: getCautions(item, values)
+            })).sort((a, b) => b.score - a.score);
+            
+            const tiers = {
+                S: scoredItems.filter(i => getTier(i.score) === 'S'),
+                A: scoredItems.filter(i => getTier(i.score) === 'A'),
+                B: scoredItems.filter(i => getTier(i.score) === 'B'),
+                C: scoredItems.filter(i => getTier(i.score) === 'C')
+            };
+            
+            const tierLabels = {
+                S: 'Optimal Fit',
+                A: 'Strong Fit',
+                B: 'Moderate Fit',
+                C: 'Lower Fit'
+            };
+
+            return (
+                <div className="panel">
+                    <div className="panel-header">
+                        <div className="panel-icon">🎯</div>
+                        <h3 className="panel-title">{title}</h3>
+                    </div>
+                    <div className="tier-list">
+                        {['S', 'A', 'B', 'C'].map(tierKey => (
+                            tiers[tierKey].length > 0 && (
+                                <div key={tierKey} className={`tier tier-${tierKey.toLowerCase()}`}>
+                                    <div className="tier-header">
+                                        <div className="tier-badge">{tierKey}</div>
+                                        <span className="tier-label">{tierLabels[tierKey]}</span>
+                                    </div>
+                                    <div className="tier-items">
+                                        {tiers[tierKey].map(item => (
+                                            <TierItem
+                                                key={item.id}
+                                                item={item}
+                                                score={item.score}
+                                                cautions={item.cautions}
+                                                expanded={expandedId === item.id}
+                                                onToggle={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function RadarChart({ values }) {
+            const canvasRef = useRef(null);
+            const chartRef = useRef(null);
+            
+            const radarData = useMemo(() => {
+                return [
+                    { label: 'Conceptual', value: values.conceptual_vs_procedural || 5 },
+                    { label: 'Writing', value: values.writing_interest || 5 },
+                    { label: 'Space', value: values.space_interest || 5 },
+                    { label: 'Philosophy', value: values.philosophy_interest || 5 },
+                    { label: 'Business', value: values.business_interest || 5 },
+                    { label: 'Communication', value: values.persuasion_interest || 5 },
+                    { label: 'Tech', value: values.tech_robotics_interest || 5 },
+                    { label: 'Defense', value: values.defense_interest || 5 }
+                ];
+            }, [values]);
+
+            useEffect(() => {
+                if (!canvasRef.current) return;
+                
+                if (chartRef.current) {
+                    chartRef.current.destroy();
+                }
+                
+                const ctx = canvasRef.current.getContext('2d');
+                chartRef.current = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: radarData.map(d => d.label),
+                        datasets: [{
+                            label: 'Your Profile',
+                            data: radarData.map(d => d.value),
+                            backgroundColor: 'rgba(0, 212, 255, 0.2)',
+                            borderColor: 'rgba(0, 212, 255, 1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: 'rgba(0, 212, 255, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgba(0, 212, 255, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            r: {
+                                min: 0,
+                                max: 10,
+                                ticks: {
+                                    stepSize: 2,
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    backdropColor: 'transparent'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                angleLines: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                pointLabels: {
+                                    color: 'rgba(255, 255, 255, 0.8)',
+                                    font: {
+                                        family: 'Rajdhani',
+                                        size: 12,
+                                        weight: '600'
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+                
+                return () => {
+                    if (chartRef.current) {
+                        chartRef.current.destroy();
+                    }
+                };
+            }, [radarData]);
+
+            return (
+                <div className="panel">
+                    <div className="panel-header">
+                        <div className="panel-icon">📊</div>
+                        <h3 className="panel-title">Profile Radar</h3>
+                    </div>
+                    <div className="radar-container">
+                        <canvas ref={canvasRef}></canvas>
+                    </div>
+                </div>
+            );
+        }
+
+        function NextSteps({ values }) {
+            const steps = useMemo(() => {
+                const baseSteps = [
+                    {
+                        title: 'Meet with UA-ACTS',
+                        description: 'Schedule your weekly check-in and discuss this career exploration with your mentor. They can help create accountability checkpoints.'
+                    },
+                    {
+                        title: 'Contact Arts & Sciences Advising',
+                        description: 'Visit 200 Clark Hall to discuss major change options. Bring this profile to show your strengths and interests.'
+                    },
+                    {
+                        title: 'Use DegreeWorks "What-If"',
+                        description: 'See how your current credits apply to Philosophy, Communication, or New College programs.'
+                    }
+                ];
+                
+                if (values.space_interest >= 7) {
+                    baseSteps.push({
+                        title: 'Join UASPACE',
+                        description: 'Contact uaspace@ua.edu to join the Business or New Member subteam. No engineering required.'
+                    });
+                }
+                
+                if (values.defense_interest >= 6) {
+                    baseSteps.push({
+                        title: 'Research Security Clearance',
+                        description: 'Your U.S. citizenship and military family background make clearance straightforward. This opens $150K+ defense space careers.'
+                    });
+                }
+                
+                if (values.writing_interest >= 7) {
+                    baseSteps.push({
+                        title: 'Enroll in EN 381 Science Writing',
+                        description: 'This course directly prepares you for aerospace technical writing and science communication careers.'
+                    });
+                }
+                
+                return baseSteps;
+            }, [values]);
+
+            return (
+                <div className="panel">
+                    <div className="panel-header">
+                        <div className="panel-icon">🚀</div>
+                        <h3 className="panel-title">Next Steps</h3>
+                    </div>
+                    <div className="next-steps">
+                        {steps.map((step, i) => (
+                            <div key={i} className="step-item">
+                                <div className="step-number">{i + 1}</div>
+                                <div className="step-content">
+                                    <div className="step-title">{step.title}</div>
+                                    <div className="step-description">{step.description}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function ProfileBar({ profiles, activeProfile, onSelectProfile, onSaveProfile, onShareProfile, onResetDefault, onResetBlank }) {
+            const [showSaveModal, setShowSaveModal] = useState(false);
+            const [showShareModal, setShowShareModal] = useState(false);
+            const [newProfileName, setNewProfileName] = useState('');
+            const [shareUrl, setShareUrl] = useState('');
+
+            const handleSave = () => {
+                if (newProfileName.trim()) {
+                    onSaveProfile(newProfileName.trim());
+                    setNewProfileName('');
+                    setShowSaveModal(false);
+                }
+            };
+
+            const handleShare = () => {
+                const url = onShareProfile();
+                setShareUrl(url);
+                setShowShareModal(true);
+            };
+
+            const copyToClipboard = () => {
+                navigator.clipboard.writeText(shareUrl);
+            };
+
+            return (
+                <>
+                    <div className="profile-bar">
+                        {profiles.map(profile => (
+                            <button
+                                key={profile.id}
+                                className={`profile-btn ${activeProfile === profile.id ? 'active' : ''}`}
+                                onClick={() => onSelectProfile(profile.id)}
+                            >
+                                {profile.name}
+                            </button>
+                        ))}
+                        <button className="profile-btn" onClick={onResetDefault}>
+                            Reset to Baseline
+                        </button>
+                        <button className="profile-btn" onClick={onResetBlank}>
+                            Reset to Blank
+                        </button>
+                        <button className="profile-btn save" onClick={() => setShowSaveModal(true)}>
+                            💾 Save Profile
+                        </button>
+                        <button className="profile-btn share" onClick={handleShare}>
+                            🔗 Share
+                        </button>
+                    </div>
+
+                    {showSaveModal && (
+                        <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
+                            <div className="modal" onClick={e => e.stopPropagation()}>
+                                <h3 className="modal-title">Save Profile</h3>
+                                <input
+                                    type="text"
+                                    className="modal-input"
+                                    placeholder="Profile name (e.g., 'Entrepreneurial Path')"
+                                    value={newProfileName}
+                                    onChange={e => setNewProfileName(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleSave()}
+                                />
+                                <div className="modal-buttons">
+                                    <button className="profile-btn" onClick={() => setShowSaveModal(false)}>Cancel</button>
+                                    <button className="profile-btn save" onClick={handleSave}>Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showShareModal && (
+                        <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+                            <div className="modal" onClick={e => e.stopPropagation()}>
+                                <h3 className="modal-title">Share Profile</h3>
+                                <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem'}}>
+                                    Copy this URL to share your current slider settings:
+                                </p>
+                                <div className="share-url">{shareUrl}</div>
+                                <div className="modal-buttons">
+                                    <button className="profile-btn" onClick={() => setShowShareModal(false)}>Close</button>
+                                    <button className="profile-btn save" onClick={copyToClipboard}>📋 Copy URL</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
+            );
+        }
+
+        // ============ MAIN APP ============
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('sliders');
+            const [sliderValues, setSliderValues] = useState({});
+            const [profiles, setProfiles] = useState([
+                { id: 'baseline', name: "McRae's Baseline" }
+            ]);
+            const [activeProfile, setActiveProfile] = useState('baseline');
+
+            // Get default values
+            const getDefaultValues = () => {
+                const defaults = {};
+                SLIDER_GROUPS.forEach(group => {
+                    group.sliders.forEach(slider => {
+                        defaults[slider.id] = slider.default;
+                    });
+                });
+                return defaults;
+            };
+
+            const getBlankValues = () => {
+                const blank = {};
+                SLIDER_GROUPS.forEach(group => {
+                    group.sliders.forEach(slider => {
+                        blank[slider.id] = 5;
+                    });
+                });
+                return blank;
+            };
+
+            // Initialize from URL or localStorage
+            useEffect(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const profileParam = urlParams.get('profile');
+                
+                if (profileParam) {
+                    try {
+                        const decoded = JSON.parse(atob(profileParam));
+                        setSliderValues(decoded);
+                    } catch {
+                        setSliderValues(getDefaultValues());
+                    }
+                } else {
+                    const saved = localStorage.getItem('pathfinder_values');
+                    if (saved) {
+                        setSliderValues(JSON.parse(saved));
+                    } else {
+                        setSliderValues(getDefaultValues());
+                    }
+                }
+                
+                const savedProfiles = localStorage.getItem('pathfinder_profiles');
+                if (savedProfiles) {
+                    setProfiles(JSON.parse(savedProfiles));
+                }
+            }, []);
+
+            // Save to localStorage on change
+            useEffect(() => {
+                if (Object.keys(sliderValues).length > 0) {
+                    localStorage.setItem('pathfinder_values', JSON.stringify(sliderValues));
+                }
+            }, [sliderValues]);
+
+            useEffect(() => {
+                localStorage.setItem('pathfinder_profiles', JSON.stringify(profiles));
+            }, [profiles]);
+
+            const handleSliderChange = (id, value) => {
+                setSliderValues(prev => ({ ...prev, [id]: value }));
+            };
+
+            const handleSaveProfile = (name) => {
+                const newProfile = {
+                    id: `profile_${Date.now()}`,
+                    name,
+                    values: { ...sliderValues }
+                };
+                setProfiles(prev => [...prev, newProfile]);
+                setActiveProfile(newProfile.id);
+            };
+
+            const handleSelectProfile = (profileId) => {
+                const profile = profiles.find(p => p.id === profileId);
+                if (profile) {
+                    if (profile.values) {
+                        setSliderValues(profile.values);
+                    } else if (profileId === 'baseline') {
+                        setSliderValues(getDefaultValues());
+                    }
+                    setActiveProfile(profileId);
+                }
+            };
+
+            const handleShareProfile = () => {
+                const encoded = btoa(JSON.stringify(sliderValues));
+                const url = `${window.location.origin}${window.location.pathname}?profile=${encoded}`;
+                return url;
+            };
+
+            const handleResetDefault = () => {
+                setSliderValues(getDefaultValues());
+                setActiveProfile('baseline');
+            };
+
+            const handleResetBlank = () => {
+                setSliderValues(getBlankValues());
+                setActiveProfile(null);
+            };
+
+            return (
+                <div className="app-container">
+                    <header className="mission-header">
+                        <div className="logo-container">
+                            <div className="logo-icon">🛰️</div>
+                            <div>
+                                <h1 className="title-main">Pathfinder Mission Control</h1>
+                                <p className="title-sub">McRae's Launch Control</p>
+                            </div>
+                        </div>
+                        <div className="mission-status">
+                            <span className="status-dot"></span>
+                            <span>MISSION ACTIVE • TRAJECTORY ANALYSIS ONLINE</span>
+                        </div>
+                    </header>
+
+                    <nav className="nav-tabs">
+                        <button 
+                            className={`nav-tab ${activeTab === 'sliders' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('sliders')}
+                        >
+                            ⚙️ Profile
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'majors' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('majors')}
+                        >
+                            🎓 Majors
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'careers' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('careers')}
+                        >
+                            💼 Careers
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'radar' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('radar')}
+                        >
+                            📊 Radar
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'steps' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('steps')}
+                        >
+                            🚀 Next Steps
+                        </button>
+                    </nav>
+
+                    <ProfileBar
+                        profiles={profiles}
+                        activeProfile={activeProfile}
+                        onSelectProfile={handleSelectProfile}
+                        onSaveProfile={handleSaveProfile}
+                        onShareProfile={handleShareProfile}
+                        onResetDefault={handleResetDefault}
+                        onResetBlank={handleResetBlank}
+                    />
+
+                    <main className="main-content">
+                        {activeTab === 'sliders' && (
+                            <div className="sliders-section">
+                                {SLIDER_GROUPS.map(group => (
+                                    <SliderGroup
+                                        key={group.id}
+                                        group={group}
+                                        values={sliderValues}
+                                        onChange={handleSliderChange}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        {activeTab === 'majors' && (
+                            <div className="full-width">
+                                <TierList
+                                    items={MAJORS}
+                                    values={sliderValues}
+                                    title="UA Majors & Programs"
+                                />
+                            </div>
+                        )}
+
+                        {activeTab === 'careers' && (
+                            <div className="full-width">
+                                <TierList
+                                    items={CAREERS}
+                                    values={sliderValues}
+                                    title="Career Pathways"
+                                />
+                            </div>
+                        )}
+
+                        {activeTab === 'radar' && (
+                            <div className="full-width">
+                                <RadarChart values={sliderValues} />
+                            </div>
+                        )}
+
+                        {activeTab === 'steps' && (
+                            <div className="full-width">
+                                <NextSteps values={sliderValues} />
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
